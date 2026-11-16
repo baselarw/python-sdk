@@ -64,12 +64,16 @@ Run it again. `print(sorted(group.tools))` now shows both:
 
 `call_tool` is not the only routed call. `group.read_resource(name)` and `group.get_prompt(name, arguments)` work the same way: you pass the aggregate key (the one in `group.resources` / `group.prompts`, prefixed if you use a hook), and the group finds the owning session and forwards the call with the resource's real URI or the prompt's real name.
 
-```python
-# `Library.hours` is the group key; `library://hours` goes on the wire.
-result = await group.read_resource("Library.hours")
+The library server already has the `hours` resource. Add a third server that offers a prompt:
 
-# `arguments` are forwarded to the owning server unchanged.
-prompt = await group.get_prompt("Greeter.greet", {"name": "Ada"})
+```python title="greeter_server.py" hl_lines="7"
+--8<-- "docs_src/session_groups/tutorial005.py"
+```
+
+Then read the resource and get the prompt through one group:
+
+```python title="client.py" hl_lines="20 24"
+--8<-- "docs_src/session_groups/tutorial006.py"
 ```
 
 Both raise `KeyError` if the key isn't an aggregated resource/prompt, and both accept the same `allow_input_required` flag as `ClientSession`, so a server that needs input mid-call behaves identically through the group.

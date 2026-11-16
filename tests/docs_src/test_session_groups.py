@@ -7,9 +7,9 @@ exact same aggregation path through `connect_with_session` with in-memory sessio
 import traceback
 
 import pytest
-from mcp_types import INVALID_PARAMS, Implementation
+from mcp_types import INVALID_PARAMS, Implementation, TextContent, TextResourceContents
 
-from docs_src.session_groups import tutorial001, tutorial002, tutorial004
+from docs_src.session_groups import tutorial001, tutorial002, tutorial004, tutorial005, tutorial006
 from mcp import Client, ClientSessionGroup, MCPError
 
 # See test_index.py for why this is a per-module mark and not a conftest hook.
@@ -102,3 +102,30 @@ async def test_disconnect_removes_every_component_of_that_server() -> None:
         await group.disconnect_from_server(web_session)
         assert sorted(group.tools) == ["Library.search"]
         assert sorted(group.resources) == ["Library.hours"]
+
+
+async def test_read_resource_and_get_prompt_route_to_the_owning_server() -> None:
+    """tutorial006: the group finds the owning server for a resource and for a prompt."""
+    async with Client(tutorial001.mcp) as library, Client(tutorial005.mcp) as greeter:
+        group = ClientSessionGroup(component_name_hook=tutorial006.by_server)
+        await group.connect_with_session(_server_info(library), library.session)
+        await group.connect_with_session(_server_info(greeter), greeter.session)
+
+        hours = await group.read_resource("Library.hours")
+        (content,) = hours.contents
+        assert isinstance(content, TextResourceContents)
+        assert content.text == "Mon-Fri 09:00-17:00"
+
+        prompt = await group.get_prompt("Greeter.greet", {"name": "Ada"})
+        (message,) = prompt.messages
+        assert isinstance(message.content, TextContent)
+        assert message.content.text == "Please write a warm greeting for Ada."
+
+
+async def test_an_unknown_key_raises_key_error() -> None:
+    """tutorial006: only keys the group aggregated can be read or fetched."""
+    group = ClientSessionGroup()
+    with pytest.raises(KeyError):
+        await group.read_resource("Library.hours")
+    with pytest.raises(KeyError):
+        await group.get_prompt("Greeter.greet")
